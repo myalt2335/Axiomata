@@ -7,3 +7,6 @@ Axiomata is built on [StratOS](https://github.com/myalt2335/Stratos-2) but diffe
 <img width="1274" height="800" alt="image" src="https://github.com/user-attachments/assets/5cbca8e9-2690-4268-85cc-ff00719f9b94" />
 
 ![axiomata](https://github.com/user-attachments/assets/423293b2-858d-456a-85ec-5bc096703ce3)
+
+# Wanna try it out?
+Please, read the contents of the run.ps1 before blindly trying to git clone and run.
