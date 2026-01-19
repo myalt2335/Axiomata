@@ -1321,7 +1321,7 @@ pub fn handle_command(input: &str) {
         "os" => os_command(&parts[1..]),
         "uptime" => uptime(),
         "reboot" => reboot(),
-        "fbinfo" => fbtst(),
+        "fbinfo" => console::write_line(DESKTOP_PORTING_DISABLED_MSG),
         "shutdown" => shutdown(),
         "meminfo" => meminfo(),
         "memtest" => mem_selftest(),
