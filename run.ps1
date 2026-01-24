@@ -67,3 +67,83 @@ if ($NoShutdown) {
 }
 
 & $Qemu @Args
+
+<# 
+#!/usr/bin/env bash
+set -euo pipefail
+
+NO_REBOOT=false
+NO_SHUTDOWN=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --no-reboot) NO_REBOOT=true ;;
+    --no-shutdown) NO_SHUTDOWN=true ;;
+  esac
+done
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+KERNEL_TARGET="$ROOT_DIR/targets/x86_64-axiomata.json"
+KERNEL_BIN="$ROOT_DIR/target/x86_64-axiomata/debug/kernel"
+
+echo "Building kernel..."
+cargo build -q -p kernel --target "$KERNEL_TARGET"
+
+export KERNEL_BIN
+
+echo "Building OS image..."
+cargo run -q -p os
+
+UEFI_IMG_PATH="$(find "$ROOT_DIR/target/debug/build" -name uefi.img \
+  -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+
+if [[ -z "$UEFI_IMG_PATH" ]]; then
+  echo "uefi.img not found"
+  exit 1
+fi
+
+echo "UEFI image: $UEFI_IMG_PATH"
+
+FS_IMG_DIR="$ROOT_DIR/build"
+FS_IMG_PATH="$FS_IMG_DIR/fs.img"
+TARGET_FS_SIZE=$((512 * 1024 * 1024))
+
+mkdir -p "$FS_IMG_DIR"
+
+if [[ ! -f "$FS_IMG_PATH" ]]; then
+  echo "Creating persistent filesystem image..."
+  truncate -s "$TARGET_FS_SIZE" "$FS_IMG_PATH"
+else
+  CURRENT_SIZE=$(stat -c%s "$FS_IMG_PATH")
+  if (( CURRENT_SIZE < TARGET_FS_SIZE )); then
+    echo "Resizing filesystem image..."
+    truncate -s "$TARGET_FS_SIZE" "$FS_IMG_PATH"
+  fi
+fi
+
+QEMU="qemu-system-x86_64"
+OVMF="/usr/share/OVMF/OVMF_CODE.fd"
+
+ARGS=(
+  -machine type=q35,i8042=on
+  -m 512M
+
+  -drive if=pflash,format=raw,readonly=on,file="$OVMF"
+  -drive format=raw,file="$UEFI_IMG_PATH"
+
+  -device piix3-ide,id=ide
+  -drive if=none,id=fsdisk,format=raw,file="$FS_IMG_PATH"
+  -device ide-hd,drive=fsdisk,bus=ide.0,unit=0
+
+  -rtc base=localtime
+
+  -accel kvm
+  -cpu host
+)
+
+$NO_REBOOT && ARGS+=(-no-reboot)
+$NO_SHUTDOWN && ARGS+=(-no-shutdown)
+
+exec "$QEMU" "${ARGS[@]}"
+#>
